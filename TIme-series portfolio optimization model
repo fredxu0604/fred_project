@@ -1,0 +1,112 @@
+load('PS2.mat')
+
+% (a)
+% We need to derive the expected return vector first.
+
+erv = R1' * ones(108,1) * 1/108;
+
+% Then we construct another matrix in order to compare with R1.
+
+R1_bar = repmat(erv,[1,108])';
+
+% Refer to A1q2, we get the expression for H matrix.
+
+H1 = 1/108 * (R1_bar - R1)'*(R1_bar-R1)
+
+% check H matrix with H matrix in dataset.
+
+norm(H1-H)
+
+
+
+
+% (b)
+
+% We first calculate initial investment.
+m_target = 1.02;
+ttax = 0.05;
+% that is, we have another constriant to achieve 1.02 target return.
+% So we construct a new constraint matrix A1 and b.
+A_ori = [A;erv'];
+b = [1;m_target];
+% then we use null space method to calculate x.
+[Q,R] = qr(A_ori');
+Y = Q(:,1:2);
+Z = Q(:,3:12);
+R = R(1:2,:);
+v = R'\b;
+x0 = Y*v;
+Hbar = Z'* H1 * Z;
+rbar = -Z'*(H1*x0);
+L = chol(Hbar)';
+y = L\rbar;
+w = L'\y;
+
+x_ori = x0+Z*w;
+tr_cost_ori = sum(abs(x_ori-zeros(12,1)))* ttax * wealth % initial transaction
+
+
+% now we calculate the origin optimal x and hold x.
+% now we want to use a loop to track every month.
+% Define some constants;
+month = [0,1,2,3,4,5,6,7,8,9,10,11,12];
+b = [1;m_target];
+x_hold = 100*ones(1,12)./12;
+opt_mat= x_ori';
+wealth_mat = (100);
+wealth = 100;
+wealth_hold = 100;
+wealth_hold_mat = (100);
+wealth_tr = 100;
+wealth_tr_mat = (100);
+tr_cost1_mat = (tr_cost_ori);
+tr_cost2 = (tr_cost_ori);
+for i = 1:12
+    wealth = wealth * R2(i,:) * opt_mat(i,:)'; % update wealth
+    x_hold = x_hold .* R2(i,:);
+    wealth_hold = sum(x_hold); % update hold wealth
+    wealth_tr = (wealth_tr - tr_cost2)*R2(i,:)*opt_mat(i,:)';% (d) update transaction wealth
+    R3 = [R1(i+1:108,:);R2(1:i,:)]; % update R1 matrix
+    erv = R3' * ones(108,1) * 1/108; % update erv
+    R1_bar = repmat(erv,[1,108])';
+    H = 1/108 * (R1_bar - R3)'*(R1_bar-R3);% update H
+    A1 = [A;erv']; % update constraint matrix
+    % then we use null space method to calculate x.
+    [Q,R] = qr(A1');
+    Y = Q(:,1:2);
+    Z = Q(:,3:12);
+    R = R(1:2,:);
+    v = R'\b;
+    x0 = Y*v;
+    Hbar = Z'* H * Z;
+    rbar = -Z'*(H*x0);
+    L = chol(Hbar)';
+    y = L\rbar;
+    w = L'\y;
+    x = x0+Z*w;
+    tr_cost1 = sum(abs(x-opt_mat(i,:)')) * ttax * wealth;
+    tr_cost2 = sum(abs(x-opt_mat(i,:)')) * ttax * wealth_tr; % update transaction cost
+    % construct vector during every loop.
+    opt_mat = [opt_mat;x'];
+    wealth_mat = [wealth_mat,wealth];
+    wealth_hold_mat = [wealth_hold_mat,wealth_hold];
+    wealth_tr_mat = [wealth_tr_mat,wealth_tr];
+    tr_cost1_mat = [tr_cost1_mat,tr_cost1]; % (biii) record every transaction cost
+end
+
+% (c)
+% output 
+disp(tr_cost1) % final transaction cost
+disp(wealth) % final wealth value
+disp(wealth-sum(tr_cost1_mat)) % final net value
+
+% plot
+plot(month, wealth_mat,'DisplayName','opt.portfolio')
+hold on
+plot(month,wealth_hold_mat,'+','DisplayName','hold Portofolio')
+hold on
+plot(month,wealth_tr_mat,'DisplayName','wealth-tr')
+legend
+hold off
+
+
